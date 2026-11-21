@@ -73,11 +73,16 @@ def create_admin_account(user_id: str, full_name: str, email: str, password: str
 
 
 def bootstrap_admin_from_secrets() -> None:
-    """Create the first admin from Streamlit Cloud secrets."""
+    """Create or update the admin account using Streamlit Cloud secrets."""
+
     if "admin" not in st.secrets:
         return
 
     admin = st.secrets["admin"]
+
+    required_fields = ["full_name", "user_id", "email", "password"]
+    if any(not admin.get(field) for field in required_fields):
+        raise ValueError("Admin secrets are incomplete.")
 
     with _connect() as conn:
         existing = conn.execute(
@@ -85,6 +90,21 @@ def bootstrap_admin_from_secrets() -> None:
         ).fetchone()
 
         if existing:
+            conn.execute(
+                """
+                UPDATE users
+                SET full_name=?, user_id=?, email=?, password_hash=?,
+                    status='approved'
+                WHERE id=?
+                """,
+                (
+                    admin["full_name"].strip(),
+                    admin["user_id"].strip(),
+                    admin["email"].strip(),
+                    _hash_password(admin["password"]),
+                    existing["id"],
+                ),
+            )
             return
 
         conn.execute(
@@ -93,7 +113,7 @@ def bootstrap_admin_from_secrets() -> None:
                 full_name, user_id, email, password_hash,
                 role, status, reviewed_at, reviewed_by
             )
-            VALUES(?,?,?,?, 'admin','approved',CURRENT_TIMESTAMP,'system')
+            VALUES(?,?,?,?,'admin','approved',CURRENT_TIMESTAMP,'system')
             """,
             (
                 admin["full_name"].strip(),
