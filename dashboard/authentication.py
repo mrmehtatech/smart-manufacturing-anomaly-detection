@@ -72,6 +72,39 @@ def create_admin_account(user_id: str, full_name: str, email: str, password: str
         )
 
 
+def bootstrap_admin_from_secrets() -> None:
+    """Create the first admin from Streamlit Cloud secrets."""
+    if "admin" not in st.secrets:
+        return
+
+    admin = st.secrets["admin"]
+
+    with _connect() as conn:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE role='admin' LIMIT 1"
+        ).fetchone()
+
+        if existing:
+            return
+
+        conn.execute(
+            """
+            INSERT INTO users(
+                full_name, user_id, email, password_hash,
+                role, status, reviewed_at, reviewed_by
+            )
+            VALUES(?,?,?,?, 'admin','approved',CURRENT_TIMESTAMP,'system')
+            """,
+            (
+                admin["full_name"].strip(),
+                admin["user_id"].strip(),
+                admin["email"].strip(),
+                _hash_password(admin["password"]),
+            ),
+        )
+
+
+
 def register_user(full_name: str, user_id: str, email: str, password: str) -> tuple[bool, str]:
     init_auth_db()
     if not full_name.strip() or not user_id.strip() or not email.strip():
