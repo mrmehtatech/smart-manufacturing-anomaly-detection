@@ -155,6 +155,7 @@ def review_user(user_pk: int, decision: str, admin_user_id: str) -> None:
 def require_login() -> dict:
     """Show login/signup UI and stop until a user with approved status signs in."""
     init_auth_db()
+      bootstrap_admin_from_secrets()
     current = st.session_state.get("auth_user")
     if current and current.get("status") == "approved":
         return current
