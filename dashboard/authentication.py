@@ -174,29 +174,50 @@ def review_user(user_pk: int, decision: str, admin_user_id: str) -> None:
 
 def require_login() -> dict:
     """Show login/signup UI and stop until a user with approved status signs in."""
+
     init_auth_db()
-      bootstrap_admin_from_secrets()
+    bootstrap_admin_from_secrets()
+
     current = st.session_state.get("auth_user")
     if current and current.get("status") == "approved":
         return current
 
     st.title("Smart Manufacturing | Secure Access")
     st.caption("Create an account and wait for administrator approval, or sign in if approved.")
+
     login_tab, signup_tab = st.tabs(["Login", "Sign Up"])
 
     with login_tab:
         with st.form("login_form"):
             login_id = st.text_input("User ID", key="login_user_id")
-            login_password = st.text_input("Password", type="password", key="login_password")
-            login_submit = st.form_submit_button("Login", use_container_width=True)
+            login_password = st.text_input(
+                "Password",
+                type="password",
+                key="login_password"
+            )
+            login_submit = st.form_submit_button(
+                "Login",
+                use_container_width=True
+            )
+
         if login_submit:
             result = authenticate(login_id, login_password)
+
             if result is None:
                 st.error("Invalid User ID or Password.")
+
             elif result["status"] == "pending":
-                st.warning("Your signup request is pending admin approval. Please try again after approval.")
+                st.warning(
+                    "Your signup request is pending admin approval. "
+                    "Please try again after approval."
+                )
+
             elif result["status"] == "rejected":
-                st.error("Your signup request was not approved. Contact the administrator.")
+                st.error(
+                    "Your signup request was not approved. "
+                    "Contact the administrator."
+                )
+
             else:
                 st.session_state["auth_user"] = result
                 st.rerun()
@@ -206,18 +227,42 @@ def require_login() -> dict:
             full_name = st.text_input("Full Name", max_chars=100)
             new_user_id = st.text_input("Choose User ID", max_chars=64)
             email = st.text_input("Email Address", max_chars=254)
-            new_password = st.text_input("Create Password (minimum 10 characters)", type="password", max_chars=256)
-            confirm_password = st.text_input("Confirm Password", type="password", max_chars=256)
-            signup_submit = st.form_submit_button("Submit for Admin Approval", use_container_width=True)
+
+            new_password = st.text_input(
+                "Create Password (minimum 10 characters)",
+                type="password",
+                max_chars=256
+            )
+
+            confirm_password = st.text_input(
+                "Confirm Password",
+                type="password",
+                max_chars=256
+            )
+
+            signup_submit = st.form_submit_button(
+                "Submit for Admin Approval",
+                use_container_width=True
+            )
+
         if signup_submit:
             if new_password != confirm_password:
                 st.error("Passwords do not match.")
+
             else:
-                ok, message = register_user(full_name, new_user_id, email, new_password)
-                (st.success if ok else st.error)(message)
+                ok, message = register_user(
+                    full_name,
+                    new_user_id,
+                    email,
+                    new_password
+                )
+
+                if ok:
+                    st.success(message)
+                else:
+                    st.error(message)
+
     st.stop()
-
-
 def render_admin_approval_panel(admin_user_id: str) -> None:
     st.subheader("Admin approval requests")
     requests = pending_users()
